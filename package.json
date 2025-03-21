@@ -15,7 +15,6 @@
   "devDependencies": {
     "@flydotio/dockerfile": "^0.7.8",
     "@types/circomlibjs": "^0.1.6",
-    "@types/node": "^22.13.11",
-    "vercel": "^32.4.1"
+    "@types/node": "^22.13.11"
   }
 }
