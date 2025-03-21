@@ -1,0 +1,13 @@
+{
+  "name": "api",
+  "scripts": {
+    "start": "vercel dev",
+    "deploy": "vercel"
+  },
+  "dependencies": {
+    "hono": "^4.7.5"
+  },
+  "devDependencies": {
+    "vercel": "^32.4.1"
+  }
+}
