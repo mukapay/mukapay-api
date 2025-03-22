@@ -70,7 +70,12 @@ app.get('/users/:username/history', async (c) => {
   const usernameHash = await getUsernameHash(username)
 
   try {
-    const { data } = await supabase.from('history').select('*').eq('user_hash', usernameHash).order('block_number', { ascending: true })
+    const { data } = await supabase
+  .from('history')
+  .select('*')
+  .or(`from_user.eq.${usernameHash},to_user.eq.${usernameHash}`)
+  .order('block_number', { ascending: true });
+
     if (!data) {
       return c.json({
         error: 'User not found',
@@ -130,6 +135,15 @@ app.get('/proof/pay', async (c) => {
 
 app.post('/register', async (c) => {
   const { proof } = await c.req.json()
+
+  // check if user is already registered
+  const { data } = await supabase.from('event_registered').select('*').eq('username_hash', proof.input.username_hash).maybeSingle()
+  if (data) {
+    return c.json({
+      error: 'User already registered',
+      message: 'User already registered'
+    }, 400)
+  }
 
   const proofFormatted: any = formatProof(proof)
 
@@ -434,7 +448,6 @@ app.post('/webhooks/quicknode', async (c) => {
 
 app.post('/withdraw', async (c) => {
   const { proof, to_user_address, amount } = await c.req.json()
-
   const withdrawalFormatted: any = formatProof(proof);
 
 

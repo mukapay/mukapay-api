@@ -10,6 +10,7 @@ function strToField(str: string) {
     return result;
 }
 
+
 export async function getUsernameHash(username: string) {
     // Initialize Poseidon
     const poseidon = await circomlibjs.buildPoseidon();
