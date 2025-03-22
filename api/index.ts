@@ -34,16 +34,26 @@ app.get('/users/:username/balance', async (c) => {
   const usernameHash = await getUsernameHash(username)
 
   try {
-    const balance = await client.readContract({
-      address: process.env.VAULT_ADDRESS as `0x${string}`, // USDC contract
-      functionName: 'balances',
-      abi,
-      args: [usernameHash]
-    })
+    const { data } = await supabase.from('vault_balances').select('*').eq('username_hash', usernameHash).maybeSingle()
+    if (!data) {
+      return c.json({
+        error: 'User not found',
+        message: 'User not found'
+      }, 404)
+    }
+
+
+    // const balance = await client.readContract({
+    //   address: process.env.VAULT_ADDRESS as `0x${string}`, // USDC contract
+    //   functionName: 'balances',
+    //   abi,
+    //   args: [usernameHash]
+    // })
 
     return c.json({
-      address: username,
-      balance: balance.toString(),
+      username,
+      username_hash: usernameHash,
+      balance: data.amount,
       token: 'USDC'
     })
   } catch (error) {
