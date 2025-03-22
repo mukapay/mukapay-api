@@ -5,7 +5,7 @@ import { serve } from '@hono/node-server'
 import { createPublicClient, encodeFunctionData, http } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { baseSepolia } from 'viem/chains'
-import { getUsernameHash } from './util.js'
+import { formatProof, generateCredentialHash, getUsernameHash } from './util.js'
 import { abi } from './constant.js'
 import { createBundlerClient, toCoinbaseSmartAccount } from 'viem/account-abstraction'
 
@@ -53,17 +53,177 @@ app.get('/users/:username/balance', async (c) => {
   }
 })
 
-app.post('/pay', async (c) => {
-  const { payment_proof, from_hash, to_hash, amount } = await c.req.json()
+app.get('/proof/pay', async (c) => {
+  const { username, password } = await c.req.json()
+  
+  const credentialHash = await generateCredentialHash(username, password)
+  return c.json({ credentialHash })
+})
 
-  const paymentFormatted : any = {
-    pi_a: payment_proof.proof.pi_a.slice(0, 2),
-    pi_b: [
-      [payment_proof.proof.pi_b[0][1], payment_proof.proof.pi_b[0][0]],
-      [payment_proof.proof.pi_b[1][1], payment_proof.proof.pi_b[1][0]]
-    ],
-    pi_c: payment_proof.proof.pi_c.slice(0, 2)
+app.post('/register', async (c) => {
+  const { proof} = await c.req.json()
+
+  const proofFormatted = formatProof(proof)
+
+  const adminPrivateKey = generatePrivateKey()
+  const admin = privateKeyToAccount(adminPrivateKey)
+
+  const account = await toCoinbaseSmartAccount({
+    client,
+    owners: [admin],
+  })
+
+  const bundlerClient = createBundlerClient({
+    account,
+    client,
+    transport: http(process.env.RPC_URL as string),
+    chain: baseSepolia
+  })
+
+  const call = {
+    to: process.env.VAULT_ADDRESS as `0x${string}`,
+    data: encodeFunctionData({
+      abi,
+      functionName: 'register',
+      args: [
+        proofFormatted.pi_a,
+        proofFormatted.pi_b,
+        proofFormatted.pi_c,
+        proof.input.username_hash,
+        proof.input.credential_hash,
+        proof.publicSignals[2],
+        proof.publicSignals[3],
+      ],
+    })
+  }
+
+  account.userOperation = {
+    estimateGas: async (userOperation:any) => {
+      console.log("Estimating gas for user operation:", userOperation)
+      const estimate = await bundlerClient.estimateUserOperationGas(userOperation);
+      console.log("Initial gas estimate:", estimate)
+
+      // Adjust gas limits for complex transactions
+      estimate.preVerificationGas = estimate.preVerificationGas * 2n;
+      return estimate;
+    },
   };
+
+  try {
+    const userOpHash = await bundlerClient.sendUserOperation({
+      account,
+      calls: [call],
+      paymaster: true
+    })
+
+    console.log("UserOperation Hash:", userOpHash)
+
+    const receipt = await bundlerClient.waitForUserOperationReceipt({
+      hash: userOpHash,
+    })
+
+    return c.json({
+      bundler_tx_hash: userOpHash,
+      sender: account.address,
+      tx_hash: receipt.receipt.transactionHash
+    })
+  } catch (error) {
+    console.error("Error sending transaction:", error)
+    return c.json({
+      error: 'Failed to send transaction',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, 400)
+  }
+
+
+})
+
+
+app.post('/pay', async (c) => {
+  const { proof, to_username_hash, amount } = await c.req.json()
+
+  const paymentFormatted = formatProof(proof)
+
+  const adminPrivateKey = generatePrivateKey()
+  const admin = privateKeyToAccount(adminPrivateKey)
+
+  const account = await toCoinbaseSmartAccount({
+    client,
+    owners: [admin],
+  })
+
+  const bundlerClient = createBundlerClient({
+    account,
+    client,
+    transport: http(process.env.RPC_URL as string),
+    chain: baseSepolia
+  })
+
+  const payCall = {
+    to: process.env.VAULT_ADDRESS as `0x${string}`,
+    data: encodeFunctionData({
+      abi,
+      functionName: 'pay',
+      args: [
+        paymentFormatted.pi_a,
+        paymentFormatted.pi_b,
+        paymentFormatted.pi_c,
+        proof.input.username_hash,
+        to_username_hash,
+        proof.input.credential_hash,
+        proof.input.nonce,
+        proof.input.result_hash,
+        amount
+      ],
+    })
+  }
+
+  account.userOperation = {
+    estimateGas: async (userOperation:any) => {
+      console.log("Estimating gas for user operation:", userOperation)
+      const estimate = await bundlerClient.estimateUserOperationGas(userOperation);
+      console.log("Initial gas estimate:", estimate)
+
+      // Adjust gas limits for complex transactions
+      estimate.preVerificationGas = estimate.preVerificationGas * 2n;
+      return estimate;
+    },
+  };
+
+  try {
+    const userOpHash = await bundlerClient.sendUserOperation({
+      account,
+      calls: [payCall],
+      paymaster: true
+    })
+
+    console.log("UserOperation Hash:", userOpHash)
+
+    const receipt = await bundlerClient.waitForUserOperationReceipt({
+      hash: userOpHash,
+    })
+
+    return c.json({
+      bundler_tx_hash: userOpHash,
+      sender: account.address,
+      tx_hash: receipt.receipt.transactionHash
+    })
+  } catch (error) {
+    console.error("Error sending transaction:", error)
+    return c.json({
+      error: 'Failed to send transaction',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, 400)
+  }
+
+
+})
+
+app.post('/withdraw', async (c) => {
+  const { proof, to_address, amount } = await c.req.json()
+
+  const withdrawalFormatted = formatProof(proof);
+
 
   const adminPrivateKey = generatePrivateKey()
   const admin = privateKeyToAccount(adminPrivateKey)
@@ -87,15 +247,16 @@ app.post('/pay', async (c) => {
     to: process.env.VAULT_ADDRESS as `0x${string}`,
     data: encodeFunctionData({
       abi,
-      functionName: 'pay',
+      functionName: 'withdraw',
       args: [
-        paymentFormatted.pi_a,
-        paymentFormatted.pi_b,
-        paymentFormatted.pi_c,
-        from_hash,
-        to_hash,
-        payment_proof.publicSignals[1],
-        payment_proof.publicSignals[2],
+        withdrawalFormatted.pi_a,
+        withdrawalFormatted.pi_b,
+        withdrawalFormatted.pi_c,
+        proof.input.username_hash,
+        to_address,
+        proof.input.credential_hash,
+        proof.input.nonce,
+        proof.input.result_hash,
         amount
       ],
     })

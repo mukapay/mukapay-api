@@ -10,6 +10,7 @@
     "circomlibjs": "^0.1.7",
     "dotenv": "^16.4.7",
     "hono": "^4.7.5",
+    "snarkjs": "^0.7.5",
     "viem": "^2.23.13"
   },
   "devDependencies": {
