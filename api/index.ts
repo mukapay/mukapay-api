@@ -53,6 +53,37 @@ app.get('/users/:username/balance', async (c) => {
   }
 })
 
+app.get('/wallets/:address/balance', async (c) => {
+  const address = c.req.param('address')!
+
+  try {
+    const balance = await client.readContract({
+      address: process.env.USDC_ADDRESS as `0x${string}`, // USDC contract
+      functionName: 'balanceOf',
+      abi: [
+        {
+          inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
+          name: 'balanceOf',
+          outputs: [{ internalType: 'uint256', name: 'balance', type: 'uint256' }],
+          stateMutability: 'view',
+          type: 'function'
+        }
+      ],
+      args: [address as `0x${string}`]
+    })
+    return c.json({
+      address: address,
+      balance: balance.toString(),
+      token: 'USDC'
+    })
+  } catch (error) {
+    return c.json({
+      error: 'Failed to fetch balance',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, 400)
+  }
+})
+
 app.get('/proof/pay', async (c) => {
   const { username, password } = await c.req.json()
   
@@ -220,7 +251,7 @@ app.post('/pay', async (c) => {
 })
 
 app.post('/withdraw', async (c) => {
-  const { proof, to_address, amount } = await c.req.json()
+  const { proof, to_user_address, amount } = await c.req.json()
 
   const withdrawalFormatted : any = formatProof(proof);
 
@@ -253,7 +284,7 @@ app.post('/withdraw', async (c) => {
         withdrawalFormatted.pi_b,
         withdrawalFormatted.pi_c,
         proof.input.username_hash,
-        to_address,
+        to_user_address,
         proof.input.credential_hash,
         proof.input.nonce,
         proof.input.result_hash,
