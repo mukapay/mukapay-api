@@ -74,7 +74,7 @@ app.get('/users/:username/history', async (c) => {
       .from('history')
       .select('*')
       .or(`from_user.eq.${usernameHash},to_user.eq.${usernameHash}`)
-      .order('block_number', { ascending: true });
+      .order('block_number', { ascending: false });
 
     if (!data) {
       return c.json({
