@@ -71,10 +71,10 @@ app.get('/users/:username/history', async (c) => {
 
   try {
     const { data } = await supabase
-  .from('history')
-  .select('*')
-  .or(`from_user.eq.${usernameHash},to_user.eq.${usernameHash}`)
-  .order('block_number', { ascending: true });
+      .from('history')
+      .select('*')
+      .or(`from_user.eq.${usernameHash},to_user.eq.${usernameHash}`)
+      .order('block_number', { ascending: true });
 
     if (!data) {
       return c.json({
@@ -348,8 +348,6 @@ app.post('/webhooks/quicknode', async (c) => {
       //   case "0x7e644d79422f17c01e4894b5f4f588d331ebfa28653d42ae832dc59e38c9798f": // AdminChanged 
       //     continue
       // }
-
-
       const block_number = Number(log.blockNumber)
       const tx = {
         txhash: log.transactionHash,
@@ -364,6 +362,9 @@ app.post('/webhooks/quicknode', async (c) => {
 
       switch (event.eventName) {
         case 'Deposited': {
+          const transaction = await client.getTransaction({ hash: log.transactionHash as `0x${string}` })
+          console.log("transaction", (transaction))
+    
           const data = {
             amount: event.args.amount.toString(),
             username_hash: event.args.usernameHash.toString(),
@@ -371,6 +372,7 @@ app.post('/webhooks/quicknode', async (c) => {
             log_index: tx.log_index,
             block_time: new Date(tx.timestamp! * 1000).toISOString().replace('.000Z', 'Z'),
             block_number: tx.block_number,
+            from_address: transaction.from,
           }
           console.log(data)
           const { data: result } = await supabase.from('event_deposited')
@@ -409,10 +411,10 @@ app.post('/webhooks/quicknode', async (c) => {
           }
           console.log(data)
           const { data: result } = await supabase.from('event_withdrawn')
-          .upsert(data)
-          .throwOnError()
-          .select()
-        console.log('result', result)
+            .upsert(data)
+            .throwOnError()
+            .select()
+          console.log('result', result)
           break
         }
         case "Registered": {
@@ -426,10 +428,10 @@ app.post('/webhooks/quicknode', async (c) => {
           }
           console.log(data)
           const { data: result } = await supabase.from('event_registered')
-          .upsert(data)
-          .throwOnError()
-          .select()
-        console.log('result', result)
+            .upsert(data)
+            .throwOnError()
+            .select()
+          console.log('result', result)
           break
         }
       }
