@@ -63,7 +63,7 @@ app.get('/proof/pay', async (c) => {
 app.post('/register', async (c) => {
   const { proof} = await c.req.json()
 
-  const proofFormatted = formatProof(proof)
+  const proofFormatted : any = formatProof(proof)
 
   const adminPrivateKey = generatePrivateKey()
   const admin = privateKeyToAccount(adminPrivateKey)
@@ -142,7 +142,7 @@ app.post('/register', async (c) => {
 app.post('/pay', async (c) => {
   const { proof, to_username_hash, amount } = await c.req.json()
 
-  const paymentFormatted = formatProof(proof)
+  const paymentFormatted : any = formatProof(proof)
 
   const adminPrivateKey = generatePrivateKey()
   const admin = privateKeyToAccount(adminPrivateKey)
@@ -222,7 +222,7 @@ app.post('/pay', async (c) => {
 app.post('/withdraw', async (c) => {
   const { proof, to_address, amount } = await c.req.json()
 
-  const withdrawalFormatted = formatProof(proof);
+  const withdrawalFormatted : any = formatProof(proof);
 
 
   const adminPrivateKey = generatePrivateKey()

@@ -17,6 +17,7 @@
     "@flydotio/dockerfile": "^0.7.8",
     "@types/circomlibjs": "^0.1.6",
     "@types/node": "^22.13.11",
+    "@types/snarkjs": "^0.7.9",
     "typescript": "^5.8.2"
   }
 }
