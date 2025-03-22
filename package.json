@@ -7,6 +7,7 @@
   "type": "module",
   "dependencies": {
     "@hono/node-server": "^1.13.8",
+    "@supabase/supabase-js": "^2.49.1",
     "circomlibjs": "^0.1.7",
     "dotenv": "^16.4.7",
     "hono": "^4.7.5",

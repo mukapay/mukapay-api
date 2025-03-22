@@ -2,16 +2,17 @@ import 'dotenv/config'
 import { Hono } from 'hono'
 // import { handle } from 'hono/vercel'
 import { serve } from '@hono/node-server'
-import { createPublicClient, encodeFunctionData, http } from 'viem'
+import { createPublicClient, decodeEventLog, encodeFunctionData, http } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { baseSepolia } from 'viem/chains'
 import { formatProof, generateCredentialHash, getUsernameHash } from './util.js'
 import { abi } from './constant.js'
 import { createBundlerClient, toCoinbaseSmartAccount } from 'viem/account-abstraction'
 
-// export const config = {
-//   runtime: 'edge'
-// }
+import { createClient } from '@supabase/supabase-js'
+
+// Create a single supabase client for interacting with your database
+const supabase = createClient(process.env.SUPABASE_URL as string, process.env.SUPABASE_SERVICE_KEY as string)
 
 
 // Initialize viem client
@@ -86,15 +87,15 @@ app.get('/wallets/:address/balance', async (c) => {
 
 app.get('/proof/pay', async (c) => {
   const { username, password } = await c.req.json()
-  
+
   const credentialHash = await generateCredentialHash(username, password)
   return c.json({ credentialHash })
 })
 
 app.post('/register', async (c) => {
-  const { proof} = await c.req.json()
+  const { proof } = await c.req.json()
 
-  const proofFormatted : any = formatProof(proof)
+  const proofFormatted: any = formatProof(proof)
 
   const adminPrivateKey = generatePrivateKey()
   const admin = privateKeyToAccount(adminPrivateKey)
@@ -129,7 +130,7 @@ app.post('/register', async (c) => {
   }
 
   account.userOperation = {
-    estimateGas: async (userOperation:any) => {
+    estimateGas: async (userOperation: any) => {
       console.log("Estimating gas for user operation:", userOperation)
       const estimate = await bundlerClient.estimateUserOperationGas(userOperation);
       console.log("Initial gas estimate:", estimate)
@@ -173,7 +174,7 @@ app.post('/register', async (c) => {
 app.post('/pay', async (c) => {
   const { proof, to_username_hash, amount } = await c.req.json()
 
-  const paymentFormatted : any = formatProof(proof)
+  const paymentFormatted: any = formatProof(proof)
 
   const adminPrivateKey = generatePrivateKey()
   const admin = privateKeyToAccount(adminPrivateKey)
@@ -210,7 +211,7 @@ app.post('/pay', async (c) => {
   }
 
   account.userOperation = {
-    estimateGas: async (userOperation:any) => {
+    estimateGas: async (userOperation: any) => {
       console.log("Estimating gas for user operation:", userOperation)
       const estimate = await bundlerClient.estimateUserOperationGas(userOperation);
       console.log("Initial gas estimate:", estimate)
@@ -250,10 +251,155 @@ app.post('/pay', async (c) => {
 
 })
 
+app.get('/txs/:tx', async (c) => {
+  const tx = c.req.param('tx')!
+
+  const tx_hash = await client.getTransaction({ hash: tx as `0x${string}` })
+
+
+  return c.json({
+    tx_hash: tx_hash
+  })
+})
+
+app.post('/webhooks/quicknode', async (c) => {
+  try {
+    const { data } = await c.req.json()
+
+    for (const log of data) {
+      console.log("log", JSON.stringify(log))
+      const rawLog = {
+        address: log.address,
+        topics: log.topics,
+        data: log.data
+      }
+      console.log('rawlog', JSON.stringify(rawLog))
+
+      const event = decodeEventLog({
+        abi: abi,
+        data: rawLog.data,
+        topics: rawLog.topics
+      })
+      // const event = contract.interface.parseLog({ data: rawLog.data, topics: rawLog.topics })!
+      if (!event) {
+        continue
+      }
+
+      console.log("event", JSON.stringify({
+        ...event,
+        args: Object.entries(event.args).map(([key, value]) => ({
+          [key]: value.toString()
+        }))
+      }))
+      // switch (event.topic) {
+      //   case "0xbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b": // Upgraded
+      //   case "0x7f26b83ff96e1f2b6a682f133852f6798a09c465da95921460cefb3847402498": //Initialized 
+      //   case "0x2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d": // RoleGranted
+      //   case "0x7e644d79422f17c01e4894b5f4f588d331ebfa28653d42ae832dc59e38c9798f": // AdminChanged 
+      //     continue
+      // }
+
+
+      const block_number = Number(log.blockNumber)
+      const tx = {
+        txhash: log.transactionHash,
+        log_index: Number(log.logIndex),
+        name: event.eventName,
+        contract_address: log.address,
+        block_number: block_number.toString(),
+        timestamp: Number((await client.getBlock({ blockNumber: BigInt(block_number) })).timestamp),
+      }
+
+      console.log("tx", JSON.stringify(tx))
+
+      switch (event.eventName) {
+        case 'Deposited': {
+          const data = {
+            amount: event.args.amount.toString(),
+            username_hash: event.args.usernameHash.toString(),
+            tx_hash: tx.txhash,
+            log_index: tx.log_index,
+            block_time: new Date(tx.timestamp! * 1000).toISOString().replace('.000Z', 'Z'),
+            block_number: tx.block_number,
+          }
+          console.log(data)
+          const { data: result } = await supabase.from('event_deposited')
+            .upsert(data)
+            .throwOnError()
+            .select()
+          console.log('result', result)
+          break
+        }
+        case "Paid": {
+          const data = {
+            amount: event.args.amount.toString(),
+            from_username_hash: event.args.fromUsernameHash.toString(),
+            to_username_hash: event.args.toUsernameHash.toString(),
+            tx_hash: tx.txhash,
+            log_index: tx.log_index,
+            block_time: new Date(tx.timestamp! * 1000).toISOString().replace('.000Z', 'Z'),
+            block_number: tx.block_number,
+          }
+          const { data: result } = await supabase.from('event_paid')
+            .upsert(data)
+            .throwOnError()
+            .select()
+          console.log('result', result)
+          break
+        }
+        case 'Withdrawn': {
+          const data = {
+            amount: event.args.amount.toString(),
+            from_username_hash: event.args.fromUsernameHash.toString(),
+            to_user_address: event.args.toUserAddress.toString(),
+            tx_hash: tx.txhash,
+            log_index: tx.log_index,
+            block_time: new Date(tx.timestamp! * 1000).toISOString().replace('.000Z', 'Z'),
+            block_number: tx.block_number,
+          }
+          console.log(data)
+          const { data: result } = await supabase.from('event_withdrawn')
+          .upsert(data)
+          .throwOnError()
+          .select()
+        console.log('result', result)
+          break
+        }
+        case "Registered": {
+          const data = {
+            username_hash: event.args.usernameHash.toString(),
+            credential_hash: event.args.credentialHash.toString(),
+            tx_hash: tx.txhash,
+            log_index: tx.log_index,
+            block_time: new Date(tx.timestamp! * 1000).toISOString().replace('.000Z', 'Z'),
+            block_number: tx.block_number,
+          }
+          console.log(data)
+          const { data: result } = await supabase.from('event_registered')
+          .upsert(data)
+          .throwOnError()
+          .select()
+        console.log('result', result)
+          break
+        }
+      }
+    }
+    return c.json({ message: 'Webhook received' })
+
+  } catch (error) {
+    console.error("Error sending transaction:", error)
+    return c.json({
+      error: 'Failed to send transaction',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, 400)
+  }
+
+})
+
 app.post('/withdraw', async (c) => {
   const { proof, to_user_address, amount } = await c.req.json()
 
-  const withdrawalFormatted : any = formatProof(proof);
+  const withdrawalFormatted: any = formatProof(proof);
 
 
   const adminPrivateKey = generatePrivateKey()
@@ -294,7 +440,7 @@ app.post('/withdraw', async (c) => {
   }
 
   account.userOperation = {
-    estimateGas: async (userOperation:any) => {
+    estimateGas: async (userOperation: any) => {
       console.log("Estimating gas for user operation:", userOperation)
       const estimate = await bundlerClient.estimateUserOperationGas(userOperation);
       console.log("Initial gas estimate:", estimate)
