@@ -64,6 +64,32 @@ app.get('/users/:username/balance', async (c) => {
   }
 })
 
+
+app.get('/users/:username/history', async (c) => {
+  const username = c.req.param('username')!
+  const usernameHash = await getUsernameHash(username)
+
+  try {
+    const { data } = await supabase.from('history').select('*').eq('user_hash', usernameHash).order('block_number', { ascending: true })
+    if (!data) {
+      return c.json({
+        error: 'User not found',
+        message: 'User not found'
+      }, 404)
+    }
+
+
+    return c.json({
+      history: data
+    })
+  } catch (error) {
+    return c.json({
+      error: 'Failed to fetch balance',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, 400)
+  }
+})
+
 app.get('/wallets/:address/balance', async (c) => {
   const address = c.req.param('address')!
 

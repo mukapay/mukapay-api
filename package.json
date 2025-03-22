@@ -3,7 +3,7 @@
   "scripts": {
     "build": "tsc --outDir dist",
     "dev": "tsx watch api/index.ts",
-    "deploy": "pnpm run build &&fly deploy --ha=false"
+    "deploy": "pnpm run build && fly deploy --ha=false"
   },
   "type": "module",
   "dependencies": {
