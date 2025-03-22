@@ -56,7 +56,7 @@ app.get('/users/:username/balance', async (c) => {
 app.post('/pay', async (c) => {
   const { payment_proof, from_hash, to_hash, amount } = await c.req.json()
 
-  const paymentFormatted = {
+  const paymentFormatted : any = {
     pi_a: payment_proof.proof.pi_a.slice(0, 2),
     pi_b: [
       [payment_proof.proof.pi_b[0][1], payment_proof.proof.pi_b[0][0]],
@@ -102,7 +102,7 @@ app.post('/pay', async (c) => {
   }
 
   account.userOperation = {
-    estimateGas: async (userOperation) => {
+    estimateGas: async (userOperation:any) => {
       console.log("Estimating gas for user operation:", userOperation)
       const estimate = await bundlerClient.estimateUserOperationGas(userOperation);
       console.log("Initial gas estimate:", estimate)

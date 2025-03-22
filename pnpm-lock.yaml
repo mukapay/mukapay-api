@@ -22,7 +22,7 @@ importers:
         version: 4.7.5
       viem:
         specifier: ^2.23.13
-        version: 2.23.13
+        version: 2.23.13(typescript@5.8.2)
     devDependencies:
       '@flydotio/dockerfile':
         specifier: ^0.7.8
@@ -33,6 +33,9 @@ importers:
       '@types/node':
         specifier: ^22.13.11
         version: 22.13.11
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
 
 packages:
 
@@ -566,6 +569,11 @@ packages:
     resolution: {integrity: sha512-t0rzBq87m3fVcduHDUFhKmyyX+9eo6WQjZvf51Ea/M0Q7+T374Jp1aUiyUl0GKxp8M/OETVHSDvmkyPgvX+X2w==}
     engines: {node: '>=10'}
 
+  typescript@5.8.2:
+    resolution: {integrity: sha512-aJn6wq13/afZp/jT9QZmwEjDqqvSGp1VT5GVg+f/t6/oVyrgXM6BY1h9BRh/O5p3PlUPAe+WuiEZOmb/49RqoQ==, tarball: https://registry.npmjs.org/typescript/-/typescript-5.8.2.tgz}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
   undici-types@6.20.0:
     resolution: {integrity: sha512-Ny6QZ2Nju20vw1SRHe3d9jVu6gJ+4e3+MMpqu7pqE5HT6WsTSlce++GQmK5UXS8mzV8DSYHrQH+Xrf2jVcuKNg==}
 
@@ -1052,7 +1060,9 @@ snapshots:
     dependencies:
       undici-types: 6.20.0
 
-  abitype@1.0.8: {}
+  abitype@1.0.8(typescript@5.8.2):
+    optionalDependencies:
+      typescript: 5.8.2
 
   aes-js@3.0.0: {}
 
@@ -1288,15 +1298,17 @@ snapshots:
 
   os-tmpdir@1.0.2: {}
 
-  ox@0.6.9:
+  ox@0.6.9(typescript@5.8.2):
     dependencies:
       '@adraffy/ens-normalize': 1.11.0
       '@noble/curves': 1.8.1
       '@noble/hashes': 1.7.1
       '@scure/bip32': 1.6.2
       '@scure/bip39': 1.5.4
-      abitype: 1.0.8
+      abitype: 1.0.8(typescript@5.8.2)
       eventemitter3: 5.0.1
+    optionalDependencies:
+      typescript: 5.8.2
     transitivePeerDependencies:
       - zod
 
@@ -1350,20 +1362,24 @@ snapshots:
 
   type-fest@0.21.3: {}
 
+  typescript@5.8.2: {}
+
   undici-types@6.20.0: {}
 
   util-deprecate@1.0.2: {}
 
-  viem@2.23.13:
+  viem@2.23.13(typescript@5.8.2):
     dependencies:
       '@noble/curves': 1.8.1
       '@noble/hashes': 1.7.1
       '@scure/bip32': 1.6.2
       '@scure/bip39': 1.5.4
-      abitype: 1.0.8
+      abitype: 1.0.8(typescript@5.8.2)
       isows: 1.0.6(ws@8.18.1)
-      ox: 0.6.9
+      ox: 0.6.9(typescript@5.8.2)
       ws: 8.18.1
+    optionalDependencies:
+      typescript: 5.8.2
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
