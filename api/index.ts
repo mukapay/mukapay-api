@@ -4,7 +4,7 @@ import { Hono } from 'hono'
 import { serve } from '@hono/node-server'
 import { createPublicClient, decodeEventLog, encodeFunctionData, http } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import { baseSepolia } from 'viem/chains'
+import { base } from 'viem/chains'
 import { formatProof, generateCredentialHash, getUsernameHash } from './util.js'
 import { abi } from './constant.js'
 import { createBundlerClient, toCoinbaseSmartAccount } from 'viem/account-abstraction'
@@ -17,7 +17,7 @@ const supabase = createClient(process.env.SUPABASE_URL as string, process.env.SU
 
 // Initialize viem client
 const client = createPublicClient({
-  chain: baseSepolia,
+  chain: base,
   transport: http(process.env.RPC_URL as string)
 })
 
@@ -34,7 +34,7 @@ app.get('/users/:username/balance', async (c) => {
   const usernameHash = await getUsernameHash(username)
 
   try {
-    const { data } = await supabase.from('vault_balances').select('*').eq('username_hash', usernameHash).maybeSingle()
+    const { data } = await supabase.from('vault_balances_mainnet').select('*').eq('username_hash', usernameHash).maybeSingle()
     if (!data) {
       return c.json({
         error: 'User not found',
@@ -69,7 +69,7 @@ app.get('/users/:username/exists', async (c) => {
   const usernameHash = await getUsernameHash(username)
 
   console.log("usernameHash", usernameHash)
-  const { data } = await supabase.from('event_registered').select('*').eq('username_hash', usernameHash).maybeSingle()
+  const { data } = await supabase.from('event_registered_mainnet').select('*').eq('username_hash', usernameHash).maybeSingle()
   console.log("data", data)
   return c.json({ exists: data ? true : false })
 })
@@ -82,7 +82,7 @@ app.get('/users/:username/history', async (c) => {
 
   try {
     const { data } = await supabase
-      .from('history')
+      .from('history_mainnet')
       .select('*')
       .or(`from_user.eq.${usernameHash},to_user.eq.${usernameHash}`)
       .order('block_number', { ascending: false });
@@ -148,7 +148,7 @@ app.post('/register', async (c) => {
   const { proof } = await c.req.json()
 
   // check if user is already registered
-  const { data } = await supabase.from('event_registered').select('*').eq('username_hash', proof.input.username_hash).maybeSingle()
+  const { data } = await supabase.from('event_registered_mainnet').select('*').eq('username_hash', proof.input.username_hash).maybeSingle()
   if (data) {
     return c.json({
       error: 'User already registered',
@@ -170,7 +170,7 @@ app.post('/register', async (c) => {
     account,
     client,
     transport: http(process.env.RPC_URL as string),
-    chain: baseSepolia
+    chain: base
   })
 
   const call = {
@@ -249,7 +249,7 @@ app.post('/pay', async (c) => {
     account,
     client,
     transport: http(process.env.RPC_URL as string),
-    chain: baseSepolia
+    chain: base
   })
 
   const payCall = {
@@ -386,7 +386,7 @@ app.post('/webhooks/quicknode', async (c) => {
             from_address: transaction.from,
           }
           console.log(data)
-          const { data: result } = await supabase.from('event_deposited')
+          const { data: result } = await supabase.from('event_deposited_mainnet')
             .upsert(data)
             .throwOnError()
             .select()
@@ -403,7 +403,7 @@ app.post('/webhooks/quicknode', async (c) => {
             block_time: new Date(tx.timestamp! * 1000).toISOString().replace('.000Z', 'Z'),
             block_number: tx.block_number,
           }
-          const { data: result } = await supabase.from('event_paid')
+          const { data: result } = await supabase.from('event_paid_mainnet')
             .upsert(data)
             .throwOnError()
             .select()
@@ -421,7 +421,7 @@ app.post('/webhooks/quicknode', async (c) => {
             block_number: tx.block_number,
           }
           console.log(data)
-          const { data: result } = await supabase.from('event_withdrawn')
+          const { data: result } = await supabase.from('event_withdrawn_mainnet')
             .upsert(data)
             .throwOnError()
             .select()
@@ -438,7 +438,7 @@ app.post('/webhooks/quicknode', async (c) => {
             block_number: tx.block_number,
           }
           console.log(data)
-          const { data: result } = await supabase.from('event_registered')
+          const { data: result } = await supabase.from('event_registered_mainnet')
             .upsert(data)
             .throwOnError()
             .select()
@@ -477,7 +477,7 @@ app.post('/withdraw', async (c) => {
     account,
     client,
     transport: http(process.env.RPC_URL as string),
-    chain: baseSepolia
+    chain: base
   })
 
   console.log(amount)
