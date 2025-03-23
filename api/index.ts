@@ -64,10 +64,21 @@ app.get('/users/:username/balance', async (c) => {
   }
 })
 
+app.get('/users/:username/exists', async (c) => {
+  const username = c.req.param('username')!
+  const usernameHash = await getUsernameHash(username)
+
+  console.log("usernameHash", usernameHash)
+  const { data } = await supabase.from('event_registered').select('*').eq('username_hash', usernameHash).maybeSingle()
+  console.log("data", data)
+  return c.json({ exists: data ? true : false })
+})
+
 
 app.get('/users/:username/history', async (c) => {
   const username = c.req.param('username')!
   const usernameHash = await getUsernameHash(username)
+  console.log("usernameHash", usernameHash)
 
   try {
     const { data } = await supabase
